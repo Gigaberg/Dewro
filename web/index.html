@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harmonize — Material Description Harmonization</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'serif'],
+          },
+          colors: {
+            ink: '#0f172a',
+            sub: '#334155',
+            brand: '#2563eb',
+          },
+          keyframes: {
+            fadeInUp: {
+              '0%':   { opacity: '0', transform: 'translateY(30px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideDown: {
+              '0%':   { opacity: '0', transform: 'translateY(-100%)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 1s cubic-bezier(0.16,1,0.3,1) forwards',
+            'slide-down': 'slideDown 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      overflow-x: hidden;
+      color: #0f172a;
+      background:
+        radial-gradient(60rem 60rem at 80% -10%, rgba(37,99,235,0.10), transparent 60%),
+        radial-gradient(50rem 50rem at -10% 20%, rgba(14,165,233,0.10), transparent 55%),
+        radial-gradient(40rem 40rem at 50% 120%, rgba(99,102,241,0.08), transparent 60%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      background-attachment: fixed;
+    }
+
+    /* Frosted navigation (glassmorphism, light) */
+    .glass-nav {
+      background: linear-gradient(180deg, rgba(255,255,255,0.80), rgba(255,255,255,0.55));
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,0.6);
+    }
+
+    /* Radial blur glass orb (per Design.md) */
+    .radial-blur-container {
+      position: relative;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 72%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 32%, transparent 74%);
+              mask-image: radial-gradient(ellipse at center, black 32%, transparent 74%);
+    }
+
+    /* Premium glass card for work surfaces */
+    .glass-card {
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 10px 40px -12px rgba(15,23,42,0.18);
+    }
+
+    /* Soft glow on the hero headline (Design.md "stroke/shadow" spirit, light theme) */
+    .hero-glow {
+      text-shadow:
+        0 1px 0 rgba(255,255,255,0.8),
+        0 10px 40px rgba(37,99,235,0.18);
+    }
+
+    .field {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(148,163,184,0.35);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+    }
+
+    .tab-link.active { color: #0f172a; }
+    .tab-link.active::after {
+      content: ''; display: block; height: 2px; border-radius: 2px;
+      background: #2563eb; margin-top: 4px;
+    }
+
+    .spinner {
+      width: 20px; height: 20px; border-radius: 9999px;
+      border: 2.5px solid rgba(37,99,235,0.25); border-top-color: #2563eb;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .data-table { border-collapse: separate; border-spacing: 0; }
+    .data-table th {
+      position: sticky; top: 0; background: rgba(248,250,252,0.95);
+      backdrop-filter: blur(4px); font-weight: 600; color: #334155;
+      text-align: left; padding: 10px 14px; font-size: 12px;
+      text-transform: uppercase; letter-spacing: .04em;
+      border-bottom: 1px solid rgba(148,163,184,0.3);
+    }
+    .data-table td {
+      padding: 10px 14px; font-size: 13.5px; color: #1e293b; vertical-align: top;
+      border-bottom: 1px solid rgba(148,163,184,0.18);
+    }
+    .data-table tr:hover td { background: rgba(37,99,235,0.04); }
+    .table-wrap { max-height: 540px; overflow: auto; border-radius: 16px; }
+  </style>
+</head>
+
+<body class="font-sans text-ink antialiased">
+
+  <!-- ============================ NAV ============================ -->
+  <nav class="fixed top-0 inset-x-0 z-50 h-20 glass-nav animate-slide-down">
+    <div class="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2">
+        <svg class="w-6 h-6 text-brand" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l2.2 6.9H21l-5.6 4.1 2.2 6.9L12 15.8 6.4 19.9l2.2-6.9L3 8.9h6.8z"/>
+        </svg>
+        <span class="text-xl font-bold tracking-tight text-ink">Harmonize</span>
+      </a>
+
+      <div class="hidden md:flex items-center gap-8" id="navLinks">
+        <a data-tab="pipeline"    class="tab-link text-sm font-medium text-sub hover:text-ink transition-colors">Pipeline</a>
+        <a data-tab="data"        class="tab-link text-sm font-medium text-sub hover:text-ink transition-colors">Data</a>
+        <a data-tab="duplicates"  class="tab-link text-sm font-medium text-sub hover:text-ink transition-colors">Duplicates</a>
+        <a data-tab="extract"     class="tab-link text-sm font-medium text-sub hover:text-ink transition-colors">Extract</a>
+        <a data-tab="standardize" class="tab-link text-sm font-medium text-sub hover:text-ink transition-colors">Standardize</a>
+      </div>
+
+      <div class="hidden md:flex items-center gap-4">
+        <a href="#app" data-tab="pipeline"
+           class="bg-ink text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-slate-800 active:scale-95 transition">
+          Get started
+        </a>
+      </div>
+
+      <button id="menuBtn" class="md:hidden text-ink" aria-label="Menu">
+        <svg id="iconOpen" class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg id="iconClose" class="w-7 h-7 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===================== MOBILE MENU ===================== -->
+  <div id="mobileMenu" class="fixed inset-0 z-40 bg-white/95 backdrop-blur-2xl translate-x-full transition-transform duration-300 md:hidden">
+    <div class="flex flex-col pt-28 px-8 gap-6">
+      <a data-tab="pipeline"    class="mm-link text-2xl font-semibold text-ink/90">Pipeline</a><hr class="border-slate-200"/>
+      <a data-tab="data"        class="mm-link text-2xl font-semibold text-ink/90">Data</a><hr class="border-slate-200"/>
+      <a data-tab="duplicates"  class="mm-link text-2xl font-semibold text-ink/90">Duplicates</a><hr class="border-slate-200"/>
+      <a data-tab="extract"     class="mm-link text-2xl font-semibold text-ink/90">Extract</a><hr class="border-slate-200"/>
+      <a data-tab="standardize" class="mm-link text-2xl font-semibold text-ink/90">Standardize</a>
+    </div>
+  </div>
+
+  <!-- ============================ HERO ============================ -->
+  <header id="top" class="relative min-h-[88dvh] flex flex-col justify-end items-center max-w-7xl mx-auto px-6 pb-10">
+    <div class="w-full max-w-5xl text-center mb-4">
+      <div class="radial-blur-container p-10 md:p-20 rounded-[2.5rem] animate-fade-in-up opacity-0" style="animation-delay:.15s">
+        <h1 class="font-sans font-black tracking-tighter leading-none text-ink hero-glow
+                   text-5xl md:text-6xl lg:text-[5.25rem]">
+          Harmonize Material<br>
+          Descriptions, <span class="font-serif italic font-semibold text-brand">Everywhere</span>
+        </h1>
+        <p class="mt-7 text-xl md:text-2xl font-semibold text-sub max-w-2xl mx-auto">
+          Detect duplicates, extract structured attributes, and standardize noisy
+          free-text into one clean record.
+        </p>
+        <div class="mt-9 flex items-center justify-center gap-4">
+          <a href="#app" data-tab="pipeline"
+             class="bg-ink text-white text-base font-semibold px-7 py-3.5 rounded-full hover:bg-slate-800 active:scale-95 transition shadow-lg shadow-slate-900/10">
+            Try the pipeline
+          </a>
+          <a href="#app" data-tab="data"
+             class="text-base font-semibold text-ink/80 hover:text-ink px-5 py-3.5 transition">
+            Explore data →
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================ APP ============================ -->
+  <main id="app" class="max-w-7xl mx-auto px-6 pb-28">
+
+    <!-- Tab bar (desktop/mobile) -->
+    <div class="glass-card rounded-2xl p-1.5 flex flex-wrap gap-1 mb-8 sticky top-24 z-30">
+      <button data-tab="pipeline"    class="tabbtn flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-semibold transition">Full pipeline</button>
+      <button data-tab="data"        class="tabbtn flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-semibold transition">Data</button>
+      <button data-tab="duplicates"  class="tabbtn flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-semibold transition">Duplicates</button>
+      <button data-tab="extract"     class="tabbtn flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-semibold transition">Extract</button>
+      <button data-tab="standardize" class="tabbtn flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-semibold transition">Standardize</button>
+    </div>
+
+    <!-- ---------- PIPELINE ---------- -->
+    <section data-panel="pipeline" class="panel">
+      <div class="glass-card rounded-3xl p-7 md:p-9">
+        <h2 class="font-serif text-3xl font-bold mb-1">End-to-end harmonization</h2>
+        <p class="text-sub mb-6">Collapse many inconsistent descriptions of the same item into one clean, structured record.</p>
+
+        <div class="flex flex-wrap gap-2 mb-5" id="pipeSrcTabs">
+          <button data-src="paste"    class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Paste descriptions</button>
+          <button data-src="flipkart" class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Flipkart category</button>
+          <button data-src="csv"      class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Upload CSV</button>
+        </div>
+
+        <div data-src-panel="paste">
+          <label class="block text-sm font-semibold mb-2">One description per line</label>
+          <textarea id="pipePaste" rows="6" class="field w-full rounded-xl p-3.5 text-sm font-mono">BALL BEARING 6205-2Z SKF
+Bearing Ball 6205 ZZ
+6205-2Z Deep Groove Ball Bearing
+Hex Bolt M8 x 40mm SS304
+Stainless Steel Hex Bolt M8 40 mm
+Copper Cable 2.5 sqmm</textarea>
+        </div>
+
+        <div data-src-panel="flipkart" class="hidden">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2">Category</label>
+              <select id="pipeCat" class="field w-full rounded-xl p-3 text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2">Max rows: <span id="pipeLimitVal">100</span></label>
+              <input id="pipeLimit" type="range" min="20" max="300" step="10" value="100" class="w-full accent-brand mt-3"/>
+            </div>
+          </div>
+        </div>
+
+        <div data-src-panel="csv" class="hidden">
+          <label class="block text-sm font-semibold mb-2">CSV file</label>
+          <input id="pipeCsv" type="file" accept=".csv"
+                 class="block w-full text-sm text-sub file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:bg-ink file:text-white file:font-semibold hover:file:bg-slate-800 file:cursor-pointer"/>
+          <div id="pipeCsvColWrap" class="mt-4 hidden">
+            <label class="block text-sm font-semibold mb-2">Description column</label>
+            <select id="pipeCsvCol" class="field w-full rounded-xl p-3 text-sm"></select>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-5 mt-6 items-end">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Similarity threshold: <span id="pipeThreshVal">0.80</span></label>
+            <input id="pipeThresh" type="range" min="0.50" max="0.99" step="0.01" value="0.80" class="w-full accent-brand"/>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Dedup method</label>
+            <select id="pipeMethod" class="field w-full rounded-xl p-3 text-sm">
+              <option value="embeddings">Embeddings (MiniLM)</option>
+              <option value="tfidf">TF-IDF baseline</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2.5 text-sm font-medium pb-3">
+            <input id="pipeT5" type="checkbox" class="w-4 h-4 accent-brand"/> t5-small pass
+          </label>
+        </div>
+
+        <button id="pipeRun" class="mt-7 bg-ink text-white font-semibold px-7 py-3.5 rounded-full hover:bg-slate-800 active:scale-95 transition inline-flex items-center gap-3">
+          Run full pipeline
+        </button>
+      </div>
+      <div id="pipeOut" class="mt-8"></div>
+    </section>
+
+    <!-- ---------- DATA ---------- -->
+    <section data-panel="data" class="panel hidden">
+      <div class="glass-card rounded-3xl p-7 md:p-9">
+        <h2 class="font-serif text-3xl font-bold mb-1">Datasets</h2>
+        <p class="text-sub mb-6">Three public datasets back the pipeline — Flipkart supplies real Indian-context text; the others provide labeled references.</p>
+        <div id="dataOverview" class="mb-7"></div>
+        <label class="block text-sm font-semibold mb-2">Preview a dataset</label>
+        <select id="dataPick" class="field rounded-xl p-3 text-sm w-full max-w-xs">
+          <option value="flipkart">Flipkart</option>
+          <option value="abtbuy">Abt-Buy</option>
+          <option value="amazongoogle">Amazon-Google</option>
+          <option value="wdc">WDC-PAVE</option>
+        </select>
+        <div id="dataPreview" class="mt-6"></div>
+      </div>
+    </section>
+
+    <!-- ---------- DUPLICATES ---------- -->
+    <section data-panel="duplicates" class="panel hidden">
+      <div class="glass-card rounded-3xl p-7 md:p-9">
+        <h2 class="font-serif text-3xl font-bold mb-1">Duplicate detection</h2>
+        <p class="text-sub mb-6">Group descriptions that refer to the same physical item by embedding similarity.</p>
+
+        <div class="flex flex-wrap gap-2 mb-5" id="dupSrcTabs">
+          <button data-src="flipkart" class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Flipkart category</button>
+          <button data-src="paste"    class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Paste my own</button>
+        </div>
+
+        <div data-src-panel="flipkart">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2">Category</label>
+              <select id="dupCat" class="field w-full rounded-xl p-3 text-sm"></select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2">Max rows: <span id="dupLimitVal">150</span></label>
+              <input id="dupLimit" type="range" min="20" max="500" step="10" value="150" class="w-full accent-brand mt-3"/>
+            </div>
+          </div>
+        </div>
+        <div data-src-panel="paste" class="hidden">
+          <label class="block text-sm font-semibold mb-2">One description per line</label>
+          <textarea id="dupPaste" rows="6" class="field w-full rounded-xl p-3.5 text-sm font-mono" placeholder="BALL BEARING 6205-2Z SKF&#10;Bearing Ball 6205 ZZ&#10;6205-2Z Deep Groove Ball Bearing"></textarea>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-5 mt-6">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Similarity threshold: <span id="dupThreshVal">0.85</span></label>
+            <input id="dupThresh" type="range" min="0.50" max="0.99" step="0.01" value="0.85" class="w-full accent-brand"/>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Method</label>
+            <select id="dupMethod" class="field w-full rounded-xl p-3 text-sm">
+              <option value="embeddings">Embeddings (all-MiniLM-L6-v2)</option>
+              <option value="tfidf">TF-IDF baseline</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="dupRun" class="mt-7 bg-ink text-white font-semibold px-7 py-3.5 rounded-full hover:bg-slate-800 active:scale-95 transition inline-flex items-center gap-3">
+          Find duplicates
+        </button>
+      </div>
+      <div id="dupOut" class="mt-8"></div>
+    </section>
+
+    <!-- ---------- EXTRACT ---------- -->
+    <section data-panel="extract" class="panel hidden">
+      <div class="glass-card rounded-3xl p-7 md:p-9">
+        <h2 class="font-serif text-3xl font-bold mb-1">Attribute extraction</h2>
+        <p class="text-sub mb-6">Pull structured fields (brand, material, dimension, standard, grade…) via spaCy NER + a domain regex layer.</p>
+
+        <div class="flex flex-wrap gap-2 mb-5" id="exSrcTabs">
+          <button data-src="text"     class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Type a description</button>
+          <button data-src="wdc"      class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">WDC-PAVE row</button>
+          <button data-src="flipkart" class="srcbtn px-4 py-2 rounded-full text-sm font-medium transition">Flipkart row</button>
+        </div>
+
+        <div data-src-panel="text">
+          <label class="block text-sm font-semibold mb-2">Description</label>
+          <input id="exText" type="text" class="field w-full rounded-xl p-3.5 text-sm"
+                 value="BALL BEARING 6205-2Z SKF, SS304, M8 x 40mm, Gr.B, SCH40"/>
+        </div>
+        <div data-src-panel="wdc" class="hidden">
+          <label class="block text-sm font-semibold mb-2">WDC-PAVE row index</label>
+          <input id="exWdcIdx" type="number" min="0" value="0" class="field rounded-xl p-3 text-sm w-40"/>
+        </div>
+        <div data-src-panel="flipkart" class="hidden">
+          <label class="block text-sm font-semibold mb-2">Flipkart row index (0–199)</label>
+          <input id="exFkIdx" type="number" min="0" max="199" value="0" class="field rounded-xl p-3 text-sm w-40"/>
+        </div>
+
+        <button id="exRun" class="mt-7 bg-ink text-white font-semibold px-7 py-3.5 rounded-full hover:bg-slate-800 active:scale-95 transition inline-flex items-center gap-3">
+          Extract attributes
+        </button>
+      </div>
+      <div id="exOut" class="mt-8"></div>
+    </section>
+
+    <!-- ---------- STANDARDIZE ---------- -->
+    <section data-panel="standardize" class="panel hidden">
+      <div class="glass-card rounded-3xl p-7 md:p-9">
+        <h2 class="font-serif text-3xl font-bold mb-1">Standardization</h2>
+        <p class="text-sub mb-2">Rewrite a raw, inconsistent description into a clean, standardized form.</p>
+        <p class="text-xs text-sub/80 mb-6 italic">t5-small runs without fine-tuning (illustrative) — the rule/unit normalizer is the dependable output.</p>
+
+        <label class="block text-sm font-semibold mb-2">Raw description</label>
+        <input id="stdText" type="text" class="field w-full rounded-xl p-3.5 text-sm"
+               value="battery 5000mAh, SS304, 6205 ZZ, SCH40, qty 10 pcs"/>
+        <label class="flex items-center gap-2.5 text-sm font-medium mt-4">
+          <input id="stdT5" type="checkbox" checked class="w-4 h-4 accent-brand"/> Also run t5-small cleanup pass
+        </label>
+
+        <button id="stdRun" class="mt-7 bg-ink text-white font-semibold px-7 py-3.5 rounded-full hover:bg-slate-800 active:scale-95 transition inline-flex items-center gap-3">
+          Standardize
+        </button>
+      </div>
+      <div id="stdOut" class="mt-8"></div>
+    </section>
+
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+# Large data files tracked with Git LFS (required by Hugging Face for >10 MB files).
+*.csv filter=lfs diff=lfs merge=lfs -text
+*.jsonl filter=lfs diff=lfs merge=lfs -text
+*.xlsx filter=lfs diff=lfs merge=lfs -text
+*.csv !text !filter !merge !diff
+*.jsonl !text !filter !merge !diff
+*.xlsx !text !filter !merge !diff

@@ -1,0 +1,9 @@
+.git
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.streamlit/
+LLM_Usage_and_Cost_Analysis_Report.docx
+License_Mate_Voice_Bot_Integration_Plan.docx
