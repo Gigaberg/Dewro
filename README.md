@@ -1,87 +1,206 @@
+# DEWRO — Material Description Harmonization
+
+<div align="center">
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-dewro.onrender.com-00C7B7?style=for-the-badge&logo=render&logoColor=white)](https://dewro.onrender.com/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+
+**An end-to-end NLP & Deep Learning pipeline that identifies duplicate industrial material descriptions, extracts technical attributes, and standardizes them into structured golden catalog records.**
+
+[🚀 **Launch Live Web App**](https://dewro.onrender.com/) • [📖 Pipeline](#-pipeline-architecture) • [📊 Datasets](#-datasets) • [💻 Local Setup](#-local-development)
+
+</div>
+
 ---
-title: Material Description Harmonization
-emoji: "#"
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
+
+## 📌 Problem Statement
+
+In heavy industries (such as oil & gas, manufacturing, and energy like ONGC, IOCL, NTPC), procurement and inventory systems accumulate thousands of catalog entries with inconsistent, unstructured text descriptions for identical physical items. 
+
+> *Example:* 
+> - `"HEX BOLT M12 X 50 SS316 DIN 933"`
+> - `"SS 316 Hexagonal Head Bolt Size: 12x50mm DIN-933"`
+> - `"BOLT, HEX HD, 316 STAINLESS, M12X50"`
+
+These describe the exact same physical spare part, but because of differing naming conventions, vendors, and legacy systems, enterprise resource planning (ERP) databases register them under disparate material codes. This leads to duplicate stock purchases, bloated working capital, and supply chain inefficiencies.
+
+**DEWRO** solves this problem by automatically clustering duplicate material entries, extracting granular technical parameters (dimensions, material grades, standards, units), and standardizing them into a single clean reference record.
+
 ---
 
-# Material Description Harmonization — Prototype
+## 🌐 Live Deployment
 
-An interactive Streamlit prototype of the pipeline described in the PRD
-(*Material Description Harmonization using NLP and Deep Learning*). It collapses
-inconsistent free-text material descriptions of the same physical item into one
-clean, structured record.
+The interactive web application is live and hosted on Render:
 
-> **Scope:** This is the **functional pipeline** only. The PRD's academic
-> research layer — benchmark scoring (Precision/Recall/F1, BLEU/ROUGE),
-> hand-labeling, ablations, and the paper — and `t5-small` fine-tuning are
-> intentionally omitted.
+🔗 **[https://dewro.onrender.com/](https://dewro.onrender.com/)**
 
-## Pipeline
+- **Frontend:** Glassmorphism UI styled with Tailwind CSS, custom blur filters, dynamic tabbed views, and interactive JSON/CSV exports.
+- **Backend:** Flask REST API (`server.py`) serving endpoints for semantic deduplication, entity extraction, text normalization, and dataset inspection.
+- **Container:** Dockerized deployment with CPU-optimized PyTorch and pre-cached model weights.
 
-| Stage | Method | Module |
+---
+
+## ⚙️ Pipeline Architecture
+
+```mermaid
+flowchart TD
+    A[Raw Unstructured Material Descriptions] --> B[Stage 1: Duplicate Detection]
+    B -->|all-MiniLM-L6-v2 Embeddings| C[Cosine Similarity Clustering]
+    B -.->|Baseline| D[TF-IDF + Cosine Distance]
+    C --> E[Clusters of Equivalent Physical Items]
+    
+    E --> F[Stage 2: Attribute Extraction]
+    F -->|spaCy en_core_web_sm| G[Named Entity Recognition]
+    F -->|Regex Engine| H[Technical Regex Extraction]
+    G & H --> I[Merged Attribute Dict: Dimensions, Material, Grade, Standard, Brand]
+    
+    I --> J[Stage 3: Standardization & Synthesis]
+    J -->|Unit & Dimension Canonicalizer| K[Rule-based Normalizer]
+    J -->|t5-small Seq2Seq| L[Deep Learning Sequence Cleanup]
+    K & L --> M[Standardized Golden Catalog Record]
+```
+
+### 1. Semantic Duplicate Detection (`src/dedupe.py`)
+- Employs `sentence-transformers/all-MiniLM-L6-v2` to map free-text descriptions into 384-dimensional dense semantic vectors.
+- Clusters items with pairwise cosine similarity using Agglomerative Clustering (default threshold $\ge 0.78$).
+- Includes a TF-IDF vectorizer baseline for academic comparison.
+
+### 2. Attribute Extraction (`src/extract.py`)
+- Dual-layer extraction pipeline:
+  - **spaCy NLP (`en_core_web_sm`):** Identifies brands, organizations, and product entities.
+  - **Deterministic Regex Rule Engine:** Captures engineering dimensions (`M12 x 50mm`, `1/2" OD`), material grades (`SS316`, `ASTM A193 B7`), industrial standards (`DIN 933`, `ISO 4017`, `ANSI B16.5`), and numeric ratings (`150#`, `Class 300`).
+
+### 3. Standardization & Golden Record Synthesis (`src/standardize.py` & `src/pipeline.py`)
+- **Unit Normalization:** Converts dimensional units into canonical formats (e.g. `mm`, `in`, `bar`, `psi`).
+- **Deep Learning Text Cleanup:** Pretrained `t5-small` sequence-to-sequence model formats synthesized attribute fields into concise, consistent title strings.
+- **Golden Record Assembler:** Merges cluster attributes by majority vote and synthesizes a structured output table.
+
+---
+
+## 🖥️ Web App Features
+
+The live application provides five dedicated interactive modules:
+
+1. **🔗 Full Harmonization Pipeline:** Paste arbitrary raw descriptions, select pre-loaded categories from the Flipkart industrial dataset, or upload custom CSVs. Inspect the generated golden records and export to CSV.
+2. **🔍 Duplicate Detection:** Interactive clustering view with pairwise similarity score heatmaps, embedding vs. TF-IDF toggles, and cluster breakdown.
+3. **🏷️ Attribute Extraction:** Real-time token highlighting and extracted key-value attribute inspection for dimensions, standards, materials, and grades.
+4. **✨ Standardization:** Compare messy input strings side-by-side with rule-normalized values and T5 neural cleanup outputs.
+5. **📁 Data Explorer:** Live table view and statistics for the four bundled benchmark datasets.
+
+---
+
+## 📊 Datasets
+
+Located under [`Data/`](./Data/):
+
+| Dataset | Type / Description | Purpose |
 |---|---|---|
-| **1. Duplicate detection** | `all-MiniLM-L6-v2` embeddings + cosine similarity clustering (TF-IDF baseline included) | `src/dedupe.py` |
-| **2. Attribute extraction** | spaCy `en_core_web_sm` NER + regex rule layer (dimensions, standards, grades, materials, units) | `src/extract.py` |
-| **3. Standardization** | Rule/unit normalizer (primary) + pretrained `t5-small` cleanup pass | `src/standardize.py` |
-| **End-to-end** | descriptions → clusters → per-cluster harmonized record | `src/pipeline.py` |
+| **Flipkart E-Commerce** | Indian e-commerce descriptions with real-world noise | Unsupervised clustering & deduplication |
+| **Abt-Buy** | Labeled product pair matches (`Abt.csv`, `Buy.csv`) | Entity resolution & matching benchmark |
+| **Amazon-Google** | Labeled product pair matches | Entity resolution benchmark |
+| **WDC PAVE** | Web Data Commons normalized attribute product corpus (`.jsonl`) | Attribute extraction validation |
 
-## Setup
+---
+
+## 📁 Repository Structure
+
+```
+DEWRO/
+├── .github/                  # CI/CD and repository workflows
+├── Data/                     # Benchmark datasets (tracked with Git LFS)
+│   ├── abtbuy/               # Abt-Buy entity matching dataset
+│   ├── amazongoogle/         # Amazon-Google products dataset
+│   ├── flipkart/             # Flipkart catalog sample
+│   └── wdc/                  # WDC normalized attribute extractions
+├── src/                      # Core NLP & ML pipeline modules
+│   ├── data.py               # Dataset loaders and sampling utilities
+│   ├── dedupe.py             # MiniLM & TF-IDF clustering
+│   ├── extract.py            # spaCy NER + regex attribute extraction
+│   ├── pipeline.py           # End-to-end orchestration
+│   └── standardize.py        # Canonicalization + T5 seq2seq cleanup
+├── web/                      # Production web frontend
+│   ├── index.html            # Glassmorphic UI with Tailwind CSS
+│   └── app.js                # Frontend client logic & API bindings
+├── app.py                    # Streamlit prototype app
+├── server.py                 # Flask REST API server
+├── Dockerfile                # Production container specification
+├── render.yaml               # Render Blueprint configuration
+├── requirements.txt          # Python dependencies
+└── README.md
+```
+
+---
+
+## 💻 Local Development
+
+### Prerequisites
+- Python 3.10+
+- Git & Git LFS (`git lfs install`)
+
+### Setup Instructions
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/Gigaberg/Dewro.git
+cd Dewro
+
+# 2. Pull Git LFS data files
+git lfs pull
+
+# 3. Create and activate a virtual environment
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+# 4. Install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-First run also downloads `all-MiniLM-L6-v2` (~90 MB) and `t5-small` (~240 MB)
-from Hugging Face. Everything runs on CPU.
+### Running the Apps
 
-## Run
-
-Two frontends share the same `src/` pipeline:
-
-**A) Styled web app** (Flask + Design.md aesthetic — Tailwind, glassmorphism):
+#### A. Production Flask App (Recommended)
 ```bash
 python server.py
 ```
-Then open http://127.0.0.1:7860  (override with `PORT=5000 python server.py`)
+Open **[http://localhost:7860](http://localhost:7860)** in your browser. (Set `PORT=5000` to override the port).
 
-**B) Streamlit app:**
+#### B. Streamlit Exploratory App
 ```bash
 python -m streamlit run app.py
 ```
+Open **[http://localhost:8501](http://localhost:8501)** in your browser.
 
-Both expose the same five views. Tabs:
-- **🔗 Full pipeline** — paste descriptions / pick a Flipkart category / upload a
-  CSV → harmonized records table (downloadable as CSV).
-- **📁 Data** — dataset overview and previews.
-- **🔍 Duplicate detection**, **🏷️ Attribute extraction**, **✨ Standardization** —
-  each stage, interactively.
+---
 
-## Data
+## 🐳 Docker Setup
 
-Datasets live under `Data/` (provided):
+Run the containerized application locally:
 
-```
-Data/
-├── flipkart/flipkart_com-ecommerce_sample.csv     # real Indian e-commerce (dedup)
-├── abtbuy/{Abt,Buy,abt_buy_perfectMapping}.csv    # labeled entity-matching pairs
-├── amazongoogle/{Amazon,GoogleProducts,...}.csv   # labeled entity-matching pairs
-└── wdc/normalized_*.jsonl                          # attribute extraction ground truth
+```bash
+# Build the Docker image
+docker build -t dewro-app .
+
+# Run container on port 7860
+docker run -p 7860:7860 dewro-app
 ```
 
-## Project layout
+Navigate to **[http://localhost:7860](http://localhost:7860)**.
 
-```
-app.py                 # Streamlit UI
-requirements.txt
-src/
-├── data.py            # dataset loaders
-├── dedupe.py          # stage 1
-├── extract.py         # stage 2
-├── standardize.py     # stage 3
-└── pipeline.py        # end-to-end
-```
+---
+
+## 👥 Authors & Team Contributions
+
+This project was developed by the DEWRO team. For a detailed breakdown of module ownership, AI/ML modeling, backend security, frontend architecture, and academic deliverables, see [TEAM_CONTRIBUTIONS.md](./TEAM_CONTRIBUTIONS.md).
+
+---
+
+## 📜 License
+
+This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
