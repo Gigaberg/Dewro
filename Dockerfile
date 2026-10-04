@@ -22,6 +22,7 @@ COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
  && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir gunicorn \
  && python -m spacy download en_core_web_sm
 
 # Pre-download model weights so the first request is fast (no runtime download).
@@ -32,4 +33,6 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY --chown=user . .
 
 EXPOSE 7860
-CMD ["python", "server.py"]
+# Use gunicorn with a generous timeout (120s) so embedding requests don't get
+# killed mid-response on Render's free tier.
+CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:7860", "--timeout", "120", "--workers", "1"]

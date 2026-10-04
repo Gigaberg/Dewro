@@ -78,33 +78,41 @@ def flipkart_categories():
 # --------------------------------------------------------------------------- #
 @app.post("/api/dedupe")
 def api_dedupe():
-    body = request.get_json(force=True)
-    texts, labels, _ = _resolve_texts(body)
-    threshold = float(body.get("threshold", 0.85))
-    method = body.get("method", "embeddings")
-    if len(texts) < 2:
-        return jsonify(error="Need at least 2 descriptions."), 400
+    try:
+        body = request.get_json(force=True)
+        texts, labels, _ = _resolve_texts(body)
+        threshold = float(body.get("threshold", 0.85))
+        method = body.get("method", "embeddings")
+        if len(texts) < 2:
+            return jsonify(error="Need at least 2 descriptions."), 400
+        # Cap at 100 items on free-tier to avoid OOM / timeout kills.
+        MAX_ITEMS = 100
+        if len(texts) > MAX_ITEMS:
+            texts = texts[:MAX_ITEMS]
+            labels = labels[:MAX_ITEMS]
 
-    res = dedupe.detect_duplicates(texts, threshold=threshold, method=method)
-    groups = []
-    for gi, group in enumerate(res.duplicate_groups, start=1):
-        pairs = res.pairs(group)
-        groups.append({
-            "id": gi,
-            "size": len(group),
-            "top": round(pairs[0][2], 3) if pairs else 0.0,
-            "members": [labels[i] for i in group],
-            "pairs": [
-                {"a": labels[i][:80], "b": labels[j][:80], "sim": round(s, 3)}
-                for i, j, s in pairs
-            ],
-        })
-    return jsonify(
-        n_items=res.n_items,
-        n_groups=len(res.duplicate_groups),
-        n_in_groups=sum(len(g) for g in res.duplicate_groups),
-        groups=groups,
-    )
+        res = dedupe.detect_duplicates(texts, threshold=threshold, method=method)
+        groups = []
+        for gi, group in enumerate(res.duplicate_groups, start=1):
+            pairs = res.pairs(group)
+            groups.append({
+                "id": gi,
+                "size": len(group),
+                "top": round(pairs[0][2], 3) if pairs else 0.0,
+                "members": [labels[i] for i in group],
+                "pairs": [
+                    {"a": labels[i][:80], "b": labels[j][:80], "sim": round(s, 3)}
+                    for i, j, s in pairs
+                ],
+            })
+        return jsonify(
+            n_items=res.n_items,
+            n_groups=len(res.duplicate_groups),
+            n_in_groups=sum(len(g) for g in res.duplicate_groups),
+            groups=groups,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=f"Dedupe failed: {exc}"), 500
 
 
 # --------------------------------------------------------------------------- #
@@ -158,25 +166,28 @@ def api_standardize():
 # --------------------------------------------------------------------------- #
 @app.post("/api/pipeline")
 def api_pipeline():
-    body = request.get_json(force=True)
-    texts, _, hints = _resolve_texts(body)
-    if not texts:
-        return jsonify(error="No descriptions provided."), 400
-    threshold = float(body.get("threshold", 0.80))
-    method = body.get("method", "embeddings")
-    run_t5 = bool(body.get("run_t5", False))
+    try:
+        body = request.get_json(force=True)
+        texts, _, hints = _resolve_texts(body)
+        if not texts:
+            return jsonify(error="No descriptions provided."), 400
+        threshold = float(body.get("threshold", 0.80))
+        method = body.get("method", "embeddings")
+        run_t5 = bool(body.get("run_t5", False))
 
-    df = pipeline.harmonize(
-        texts, threshold=threshold, method=method, run_t5=run_t5, brand_hints=hints,
-    )
-    return jsonify(
-        n_in=len(texts),
-        n_records=len(df),
-        n_groups=int((df["size"] > 1).sum()) if len(df) else 0,
-        columns=list(df.columns),
-        rows=df.fillna("").to_dict("records"),
-        csv=df.to_csv(index=False),
-    )
+        df = pipeline.harmonize(
+            texts, threshold=threshold, method=method, run_t5=run_t5, brand_hints=hints,
+        )
+        return jsonify(
+            n_in=len(texts),
+            n_records=len(df),
+            n_groups=int((df["size"] > 1).sum()) if len(df) else 0,
+            columns=list(df.columns),
+            rows=df.fillna("").to_dict("records"),
+            csv=df.to_csv(index=False),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=f"Pipeline failed: {exc}"), 500
 
 
 # --------------------------------------------------------------------------- #
