@@ -72,7 +72,8 @@ def data_overview():
         df = _mod("data").dataset_overview()
         return jsonify(columns=list(df.columns), rows=df.to_dict("records"))
     except Exception as exc:  # noqa: BLE001
-        return jsonify(error=str(exc)), 500
+        import traceback
+        return jsonify(error=str(exc), detail=traceback.format_exc()), 500
 
 
 @app.get("/api/data/preview")
@@ -106,7 +107,8 @@ def data_preview():
                 _table("WDC-PAVE", wdc[["category", "raw_text", "attributes"]]),
             ])
     except Exception as exc:  # noqa: BLE001
-        return jsonify(error=str(exc)), 500
+        import traceback
+        return jsonify(error=str(exc), detail=traceback.format_exc()), 500
     return jsonify(error=f"unknown dataset {ds}"), 400
 
 
