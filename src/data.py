@@ -45,11 +45,14 @@ def _top_category(tree: str) -> str:
 @lru_cache(maxsize=1)
 def load_flipkart() -> pd.DataFrame:
     path = _require(DATA_DIR / "flipkart" / "flipkart_com-ecommerce_sample.csv")
-    df = pd.read_csv(path)
+    df = pd.read_csv(path, encoding="utf-8", encoding_errors="replace")
     keep = ["uniq_id", "product_name", "description", "brand",
             "product_category_tree", "product_specifications"]
     df = df[[c for c in keep if c in df.columns]].copy()
-    df["category"] = df["product_category_tree"].map(_top_category)
+    if "product_category_tree" in df.columns:
+        df["category"] = df["product_category_tree"].map(_top_category)
+    else:
+        df["category"] = ""
     df["product_name"] = df["product_name"].fillna("").astype(str)
     df["description"] = df["description"].fillna("").astype(str)
     return df
