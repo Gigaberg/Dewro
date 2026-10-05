@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-dewro.onrender.com-00C7B7?style=for-the-badge&logo=render&logoColor=white)](https://dewro.onrender.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-snapdeploy.app-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](https://dewro-230c0.containers.snapdeploy.app/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/)
@@ -10,7 +10,7 @@
 
 **An end-to-end NLP & Deep Learning pipeline that identifies duplicate industrial material descriptions, extracts technical attributes, and standardizes them into structured golden catalog records.**
 
-[🚀 **Launch Live Web App**](https://dewro.onrender.com/) • [📖 Pipeline](#-pipeline-architecture) • [📊 Datasets](#-datasets) • [💻 Local Setup](#-local-development)
+[🚀 **Launch Live Web App**](https://dewro-230c0.containers.snapdeploy.app/) • [📖 Pipeline](#-pipeline-architecture) • [📊 Datasets](#-datasets) • [💻 Local Setup](#-local-development)
 
 </div>
 
@@ -33,13 +33,13 @@ These describe the exact same physical spare part, but because of differing nami
 
 ## 🌐 Live Deployment
 
-The interactive web application is live and hosted on Render:
+The interactive web application is live and hosted on Snapdeploy:
 
-🔗 **[https://dewro.onrender.com/](https://dewro.onrender.com/)**
+🔗 **[https://dewro-230c0.containers.snapdeploy.app/](https://dewro-230c0.containers.snapdeploy.app/)**
 
 - **Frontend:** Glassmorphism UI styled with Tailwind CSS, custom blur filters, dynamic tabbed views, and interactive JSON/CSV exports.
 - **Backend:** Flask REST API (`server.py`) serving endpoints for semantic deduplication, entity extraction, text normalization, and dataset inspection.
-- **Container:** Dockerized deployment with CPU-optimized PyTorch and pre-cached model weights.
+- **Container:** Dockerized deployment with CPU-optimized PyTorch and lazy model loading.
 
 ---
 
@@ -109,8 +109,7 @@ Located under [`Data/`](./Data/):
 
 ```
 DEWRO/
-├── .github/                  # CI/CD and repository workflows
-├── Data/                     # Benchmark datasets (tracked with Git LFS)
+├── Data/                     # Benchmark datasets
 │   ├── abtbuy/               # Abt-Buy entity matching dataset
 │   ├── amazongoogle/         # Amazon-Google products dataset
 │   ├── flipkart/             # Flipkart catalog sample
@@ -127,7 +126,6 @@ DEWRO/
 ├── app.py                    # Streamlit prototype app
 ├── server.py                 # Flask REST API server
 ├── Dockerfile                # Production container specification
-├── render.yaml               # Render Blueprint configuration
 ├── requirements.txt          # Python dependencies
 └── README.md
 ```
@@ -138,7 +136,7 @@ DEWRO/
 
 ### Prerequisites
 - Python 3.10+
-- Git & Git LFS (`git lfs install`)
+- Git
 
 ### Setup Instructions
 
@@ -147,31 +145,28 @@ DEWRO/
 git clone https://github.com/Gigaberg/Dewro.git
 cd Dewro
 
-# 2. Pull Git LFS data files
-git lfs pull
-
-# 3. Create and activate a virtual environment
+# 2. Create and activate a virtual environment
 python -m venv .venv
 # On Windows:
 .venv\Scripts\activate
 # On Linux/macOS:
 source .venv/bin/activate
 
-# 4. Install dependencies
+# 3. Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### Running the Apps
+### Running the App
 
-#### A. Production Flask App (Recommended)
+#### Flask Web App
 ```bash
 python server.py
 ```
-Open **[http://localhost:7860](http://localhost:7860)** in your browser. (Set `PORT=5000` to override the port).
+Open **[http://localhost:5000](http://localhost:5000)** in your browser.
 
-#### B. Streamlit Exploratory App
+#### Streamlit Exploratory App
 ```bash
 python -m streamlit run app.py
 ```
@@ -179,19 +174,30 @@ Open **[http://localhost:8501](http://localhost:8501)** in your browser.
 
 ---
 
-## 🐳 Docker Setup
+## 🐳 Docker / Snapdeploy Deployment
 
-Run the containerized application locally:
+### Run locally with Docker
 
 ```bash
-# Build the Docker image
+# Build the image
 docker build -t dewro-app .
 
-# Run container on port 7860
-docker run -p 7860:7860 dewro-app
+# Run on port 5000
+docker run -p 5000:5000 dewro-app
 ```
 
-Navigate to **[http://localhost:7860](http://localhost:7860)**.
+Navigate to **[http://localhost:5000](http://localhost:5000)**.
+
+### Deploy to Snapdeploy
+
+1. Fork / push this repo to GitHub
+2. Go to [snapdeploy.dev](https://snapdeploy.dev) and create a new container
+3. Connect your GitHub repository
+4. Set **Port** to `5000`
+5. Set **Health Check Path** to `/health`
+6. Hit **Deploy**
+
+The app will be live at your Snapdeploy container URL.
 
 ---
 

@@ -179,6 +179,12 @@ def api_pipeline():
         texts, _, hints = _resolve_texts(body)
         if not texts:
             return jsonify(error="No descriptions provided."), 400
+        # Cap at 75 items to stay within memory/time limits on free-tier hosting.
+        MAX_ITEMS = 75
+        if len(texts) > MAX_ITEMS:
+            texts = texts[:MAX_ITEMS]
+            if hints:
+                hints = hints[:MAX_ITEMS]
         threshold = float(body.get("threshold", 0.80))
         method = body.get("method", "embeddings")
         run_t5 = bool(body.get("run_t5", False))
@@ -207,7 +213,7 @@ def csv_inspect():
     if f is None:
         return jsonify(error="No file uploaded."), 400
     try:
-        df = pd.read_csv(io.BytesIO(f.read())).head(2000)
+        df = pd.read_csv(io.BytesIO(f.read())).head(75)
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Could not parse CSV: {exc}"), 400
     return jsonify(
