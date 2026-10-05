@@ -11,7 +11,7 @@ submission statement.
 
 ---
 
-## Member 1 — AI/ML  (Deep Learning & Semantic Modeling)
+## Member 1 (Nayan Utkarsh) — AI/ML  (Deep Learning & Semantic Modeling)
 
 **Owns:** the neural / deep-learning core of the pipeline.
 
@@ -29,15 +29,9 @@ submission statement.
 - Documented the DL contribution and the fine-tuning trade-off (pretrained t5-small
   used as an illustrative cleanup pass; fine-tuning on WDC-PAVE noted as future work).
 
-**Submission statement**
-> I was responsible for the deep-learning and semantic-modeling components:
-> integrating the t5-small seq2seq model for description standardization and the
-> MiniLM sentence-transformer for semantic embeddings, including prompt design,
-> generation parameters, CPU-feasible inference, and model caching.
-
 ---
 
-## Member 2 — Cyber Security  (Secure Backend, API & Application Hardening)
+## Member 2 (Priyanshu Sithole) — Cyber Security  (Secure Backend, API & Application Hardening)
 
 **Owns:** the backend service, API contract, and application security.
 
@@ -59,15 +53,9 @@ submission statement.
 - Diagnosed a **stale-process / port-binding issue** (two servers bound to port
   5000 serving different code) and documented a safe restart procedure.
 
-**Submission statement**
-> I was responsible for the secure backend and application hardening: building the
-> Flask API, securing the CSV file-upload path (safe parsing, row caps, validation),
-> preventing XSS through output escaping, and establishing safe deployment/restart
-> practices and a threat-aware API contract.
-
 ---
 
-## Member 3 — Data Science  (Data Engineering & Duplicate Detection)
+## Member 3 (Shlok) — Data Science  (Data Engineering & Duplicate Detection)
 
 **Owns:** dataset sourcing/preparation and the duplicate-detection stage.
 
@@ -85,15 +73,9 @@ submission statement.
 - Exploratory analysis: dataset overview/summary statistics, choosing the
   similarity threshold, and analyzing over-/under-merging behavior.
 
-**Submission statement**
-> I was responsible for data engineering and duplicate detection: preparing and
-> loading the four datasets, and implementing the embedding-based similarity
-> clustering (with a TF-IDF baseline) that groups descriptions referring to the
-> same item.
-
 ---
 
-## Member 4 — Data Science  (Attribute Extraction, Normalization & Pipeline Integration)
+## Member 4 (Shivansh Shaurya) — Data Science  (Attribute Extraction, Normalization & Pipeline Integration)
 
 **Owns:** the attribute-extraction stage, the rule-based normalizer, and the
 end-to-end pipeline.
@@ -113,12 +95,6 @@ end-to-end pipeline.
   representative selection (longest/most-informative member) → extraction →
   standardization, producing one harmonized record per cluster with a downloadable CSV.
 - Results analysis and worked examples validating each stage against PRD examples.
-
-**Submission statement**
-> I was responsible for attribute extraction and pipeline integration: building the
-> NER + regex extraction layer, the rule-based unit/abbreviation normalizer, and the
-> end-to-end orchestration that turns many messy descriptions into one harmonized,
-> structured record.
 
 ---
 
