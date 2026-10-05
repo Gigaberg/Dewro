@@ -35,6 +35,12 @@ EMBED_LIMIT = 150
 _src: dict = {}
 
 
+@app.errorhandler(500)
+def internal_error(e):
+    import traceback
+    return jsonify(error="Internal server error", detail=str(e), tb=traceback.format_exc()), 500
+
+
 def _mod(name: str):
     """Return a src module, importing all of them on first call."""
     if not _src:
@@ -257,18 +263,22 @@ def csv_inspect():
     if f is None:
         return jsonify(error="No file uploaded."), 400
     try:
-        df = pd.read_csv(io.BytesIO(f.read()), encoding_errors="replace")
+        raw = f.read()
+        # Read only first 500 rows for column detection + preview
+        df = pd.read_csv(io.BytesIO(raw), encoding_errors="replace", nrows=500)
+        suggested = _best_text_column(df)
+        # For actual pipeline use, count total rows without loading all into memory
+        total_rows = sum(1 for _ in io.BytesIO(raw).readlines()) - 1  # minus header
+        df = df.fillna("").astype(str)
+        return jsonify(
+            columns=list(df.columns),
+            suggested=suggested,
+            total_rows=total_rows,
+            rows=df.to_dict("records"),
+        )
     except Exception as exc:  # noqa: BLE001
-        return jsonify(error=f"Could not parse CSV: {exc}"), 400
-    # Store full rows in memory for pipeline use, but only send columns + suggested to frontend.
-    # The frontend stores the full rows from this response, so we still need to send them,
-    # but cap at 2000 to keep the JSON payload manageable.
-    df = df.head(2000).fillna("").astype(str)
-    return jsonify(
-        columns=list(df.columns),
-        suggested=_best_text_column(df),
-        rows=df.to_dict("records"),
-    )
+        import traceback
+        return jsonify(error=f"Could not parse CSV: {exc}", detail=traceback.format_exc()), 400
 
 
 # --------------------------------------------------------------------------- #
