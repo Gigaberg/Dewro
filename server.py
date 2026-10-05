@@ -253,6 +253,5 @@ def _resolve_texts(body: dict):
 
 
 if __name__ == "__main__":
-    # Hugging Face Spaces (and most PaaS) inject the port via $PORT; HF expects 7860.
-    port = int(os.environ.get("PORT", 7860))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

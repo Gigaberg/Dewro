@@ -12,7 +12,7 @@ USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
     HF_HOME=/home/user/.cache/huggingface \
-    PORT=7860 \
+    PORT=5000 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /home/user/app
@@ -32,7 +32,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 # App code + data.
 COPY --chown=user . .
 
-EXPOSE 7860
+EXPOSE 5000
 # Use gunicorn with a generous timeout (120s) so embedding requests don't get
 # killed mid-response on Render's free tier.
-CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:7860", "--timeout", "120", "--workers", "1"]
+CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:5000", "--timeout", "120", "--workers", "1"]
