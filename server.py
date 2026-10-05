@@ -257,13 +257,17 @@ def csv_inspect():
     if f is None:
         return jsonify(error="No file uploaded."), 400
     try:
-        df = pd.read_csv(io.BytesIO(f.read())).head(5000)
+        df = pd.read_csv(io.BytesIO(f.read()), encoding_errors="replace")
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Could not parse CSV: {exc}"), 400
+    # Store full rows in memory for pipeline use, but only send columns + suggested to frontend.
+    # The frontend stores the full rows from this response, so we still need to send them,
+    # but cap at 2000 to keep the JSON payload manageable.
+    df = df.head(2000).fillna("").astype(str)
     return jsonify(
         columns=list(df.columns),
         suggested=_best_text_column(df),
-        rows=df.fillna("").astype(str).to_dict("records"),
+        rows=df.to_dict("records"),
     )
 
 
