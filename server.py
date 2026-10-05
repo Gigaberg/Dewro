@@ -289,6 +289,22 @@ def _table(name: str, df: pd.DataFrame) -> dict:
     return {"name": name, "columns": list(df.columns), "rows": df.to_dict("records")}
 
 
+def _best_text_column(df: pd.DataFrame) -> str | None:
+    """Pick the most description-like column: longest avg text, skipping id/numeric."""
+    best, best_score = None, -1.0
+    for col in df.columns:
+        series = df[col].dropna().astype(str)
+        if series.empty:
+            continue
+        numeric_frac = series.str.fullmatch(r"\s*-?\d+(?:\.\d+)?\s*").mean()
+        avg_len = series.str.len().mean()
+        name_penalty = 0.0 if re.search(r"id$|^id|price|qty|count", col, re.I) else 1.0
+        score = avg_len * (1.0 - numeric_frac) * name_penalty
+        if score > best_score:
+            best, best_score = col, score
+    return best
+
+
 def _resolve_method(requested: str, n_items: int) -> tuple[str, bool]:
     """Auto-switch to TF-IDF for large inputs to avoid timeout/OOM on free tier."""
     if requested == "embeddings" and n_items > EMBED_LIMIT:
