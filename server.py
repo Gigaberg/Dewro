@@ -1,19 +1,21 @@
 """Flask backend for the Material Harmonization webapp.
 
 Serves the Design.md-styled frontend (web/index.html) and exposes the existing
-src/ pipeline modules as JSON endpoints. Functionally mirrors the Streamlit app.
+src/ pipeline modules as JSON endpoints.
 
 Auto-scaling note
 -----------------
-The MiniLM embedding model (~90MB) requires loading into RAM and running a
-forward pass for every description. On the free-tier container (512MB RAM,
-shared CPU) this comfortably handles up to ~150 items before the 30-second
-gateway timeout is exceeded.
-
-For larger inputs (> EMBED_LIMIT items) the server automatically falls back to
-TF-IDF cosine similarity, which runs entirely in-process with no neural model,
-completing 1000+ items in under 2 seconds. A `method_used` and `auto_switched`
+The MiniLM embedding model requires loading into RAM and running a forward pass
+for every description. On free-tier containers this times out above ~150 items.
+For larger inputs the server automatically falls back to TF-IDF cosine similarity,
+which handles 1000+ items in under 2 seconds. A `method_used` and `auto_switched`
 field are included in the response so the frontend can inform the user.
+
+Lazy imports
+------------
+All heavy src modules (spaCy, sentence-transformers, torch) are imported on the
+first request that needs them — not at startup. This ensures gunicorn passes the
+health check immediately without hitting memory limits on cold start.
 """
 from __future__ import annotations
 
@@ -24,16 +26,29 @@ import re
 import pandas as pd
 from flask import Flask, jsonify, request, send_from_directory
 
-from src import data, dedupe, extract, pipeline, standardize
-
 app = Flask(__name__, static_folder="web", static_url_path="")
 
 # Items above this threshold auto-switch from MiniLM embeddings to TF-IDF.
 EMBED_LIMIT = 150
 
+# Lazy module cache — populated on first request.
+_src: dict = {}
+
+
+def _mod(name: str):
+    """Return a src module, importing all of them on first call."""
+    if not _src:
+        from src import data, dedupe, extract, pipeline, standardize
+        _src["data"] = data
+        _src["dedupe"] = dedupe
+        _src["extract"] = extract
+        _src["pipeline"] = pipeline
+        _src["standardize"] = standardize
+    return _src[name]
+
 
 # --------------------------------------------------------------------------- #
-# Health check (responds immediately — no model loading)
+# Health check — responds instantly, no model loading
 # --------------------------------------------------------------------------- #
 @app.get("/health")
 def health():
@@ -53,35 +68,39 @@ def index():
 # --------------------------------------------------------------------------- #
 @app.get("/api/data/overview")
 def data_overview():
-    df = data.dataset_overview()
-    return jsonify(columns=list(df.columns), rows=df.to_dict("records"))
+    try:
+        df = _mod("data").dataset_overview()
+        return jsonify(columns=list(df.columns), rows=df.to_dict("records"))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=str(exc)), 500
 
 
 @app.get("/api/data/preview")
 def data_preview():
     ds = request.args.get("dataset", "flipkart")
     try:
+        d = _mod("data")
         if ds == "flipkart":
-            df = data.flipkart_subset(limit=50)[
+            df = d.flipkart_subset(limit=50)[
                 ["product_name", "brand", "category", "description"]
             ]
             return jsonify(tables=[_table("Flipkart", df)])
         if ds == "abtbuy":
-            ab = data.load_abt_buy()
+            ab = d.load_abt_buy()
             return jsonify(tables=[
                 _table("Abt (left)", ab["left"].head(25)),
                 _table("Buy (right)", ab["right"].head(25)),
             ])
         if ds == "amazongoogle":
-            ag = data.load_amazon_google()
+            ag = d.load_amazon_google()
             return jsonify(tables=[
                 _table("Amazon (left)", ag["left"].head(25)),
                 _table("Google (right)", ag["right"].head(25)),
             ])
         if ds == "wdc":
-            wdc = data.load_wdc("test").head(25).copy()
+            wdc = d.load_wdc("test").head(25).copy()
             wdc["attributes"] = wdc["attributes"].map(
-                lambda d: ", ".join(f"{k}: {v}" for k, v in d.items())
+                lambda x: ", ".join(f"{k}: {v}" for k, v in x.items())
             )
             return jsonify(tables=[
                 _table("WDC-PAVE", wdc[["category", "raw_text", "attributes"]]),
@@ -93,7 +112,10 @@ def data_preview():
 
 @app.get("/api/flipkart/categories")
 def flipkart_categories():
-    return jsonify(categories=data.flipkart_categories())
+    try:
+        return jsonify(categories=_mod("data").flipkart_categories())
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=str(exc)), 500
 
 
 # --------------------------------------------------------------------------- #
@@ -110,8 +132,8 @@ def api_dedupe():
             return jsonify(error="Need at least 2 descriptions."), 400
 
         method, auto_switched = _resolve_method(method, len(texts))
+        res = _mod("dedupe").detect_duplicates(texts, threshold=threshold, method=method)
 
-        res = dedupe.detect_duplicates(texts, threshold=threshold, method=method)
         groups = []
         for gi, group in enumerate(res.duplicate_groups, start=1):
             pairs = res.pairs(group)
@@ -142,33 +164,38 @@ def api_dedupe():
 # --------------------------------------------------------------------------- #
 @app.post("/api/extract")
 def api_extract():
-    body = request.get_json(force=True)
-    source = body.get("source", "text")
-    gold = None
-    brand_hint = None
+    try:
+        body = request.get_json(force=True)
+        source = body.get("source", "text")
+        d = _mod("data")
+        ex = _mod("extract")
+        gold = None
+        brand_hint = None
 
-    if source == "wdc":
-        wdc = data.load_wdc("test")
-        idx = max(0, min(int(body.get("index", 0)), len(wdc) - 1))
-        row = wdc.iloc[idx]
-        text = row["raw_text"]
-        gold = row["attributes"]
-    elif source == "flipkart":
-        fk = data.flipkart_subset(limit=200)
-        idx = max(0, min(int(body.get("index", 0)), len(fk) - 1))
-        row = fk.iloc[idx]
-        text = f"{row['product_name']}. {row['description']}"
-        brand_hint = row.get("brand")
-    else:
-        text = body.get("text", "")
+        if source == "wdc":
+            wdc = d.load_wdc("test")
+            idx = max(0, min(int(body.get("index", 0)), len(wdc) - 1))
+            row = wdc.iloc[idx]
+            text = row["raw_text"]
+            gold = row["attributes"]
+        elif source == "flipkart":
+            fk = d.flipkart_subset(limit=200)
+            idx = max(0, min(int(body.get("index", 0)), len(fk) - 1))
+            row = fk.iloc[idx]
+            text = f"{row['product_name']}. {row['description']}"
+            brand_hint = row.get("brand")
+        else:
+            text = body.get("text", "")
 
-    fields = extract.extract_attributes(text, brand_hint=brand_hint)
-    return jsonify(
-        text=text,
-        spacy=extract.spacy_available(),
-        fields=[{"field": k, "value": v} for k, v in fields.items()],
-        gold=[{"field": k, "value": v} for k, v in (gold or {}).items()] if gold else None,
-    )
+        fields = ex.extract_attributes(text, brand_hint=brand_hint)
+        return jsonify(
+            text=text,
+            spacy=ex.spacy_available(),
+            fields=[{"field": k, "value": v} for k, v in fields.items()],
+            gold=[{"field": k, "value": v} for k, v in (gold or {}).items()] if gold else None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=f"Extract failed: {exc}"), 500
 
 
 # --------------------------------------------------------------------------- #
@@ -176,11 +203,14 @@ def api_extract():
 # --------------------------------------------------------------------------- #
 @app.post("/api/standardize")
 def api_standardize():
-    body = request.get_json(force=True)
-    text = body.get("text", "")
-    run_t5 = bool(body.get("run_t5", False))
-    res = standardize.standardize(text, run_t5=run_t5)
-    return jsonify(res)
+    try:
+        body = request.get_json(force=True)
+        text = body.get("text", "")
+        run_t5 = bool(body.get("run_t5", False))
+        res = _mod("standardize").standardize(text, run_t5=run_t5)
+        return jsonify(res)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=f"Standardize failed: {exc}"), 500
 
 
 # --------------------------------------------------------------------------- #
@@ -199,7 +229,7 @@ def api_pipeline():
         run_t5 = bool(body.get("run_t5", False))
         threshold = float(body.get("threshold", 0.80))
 
-        df = pipeline.harmonize(
+        df = _mod("pipeline").harmonize(
             texts, threshold=threshold, method=method, run_t5=run_t5, brand_hints=hints,
         )
         return jsonify(
@@ -217,7 +247,7 @@ def api_pipeline():
 
 
 # --------------------------------------------------------------------------- #
-# CSV upload inspection (for the pipeline "Upload CSV" input)
+# CSV upload inspection
 # --------------------------------------------------------------------------- #
 @app.post("/api/csv/inspect")
 def csv_inspect():
@@ -235,22 +265,6 @@ def csv_inspect():
     )
 
 
-def _best_text_column(df: pd.DataFrame) -> str | None:
-    """Pick the most description-like column: longest avg text, skipping id/numeric."""
-    best, best_score = None, -1.0
-    for col in df.columns:
-        series = df[col].dropna().astype(str)
-        if series.empty:
-            continue
-        numeric_frac = series.str.fullmatch(r"\s*-?\d+(?:\.\d+)?\s*").mean()
-        avg_len = series.str.len().mean()
-        name_penalty = 0.0 if re.search(r"id$|^id|price|qty|count", col, re.I) else 1.0
-        score = avg_len * (1.0 - numeric_frac) * name_penalty
-        if score > best_score:
-            best, best_score = col, score
-    return best
-
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
@@ -260,12 +274,7 @@ def _table(name: str, df: pd.DataFrame) -> dict:
 
 
 def _resolve_method(requested: str, n_items: int) -> tuple[str, bool]:
-    """Return (method_to_use, auto_switched).
-
-    If the user requested MiniLM embeddings but the item count exceeds
-    EMBED_LIMIT, automatically fall back to TF-IDF to avoid gateway timeouts
-    and OOM errors on the free-tier container.
-    """
+    """Auto-switch to TF-IDF for large inputs to avoid timeout/OOM on free tier."""
     if requested == "embeddings" and n_items > EMBED_LIMIT:
         return "tfidf", True
     return requested, False
@@ -274,7 +283,7 @@ def _resolve_method(requested: str, n_items: int) -> tuple[str, bool]:
 def _resolve_texts(body: dict):
     """Return (texts, labels, brand_hints) from a request body."""
     if body.get("category"):
-        subset = data.flipkart_subset(
+        subset = _mod("data").flipkart_subset(
             category=body["category"], limit=int(body.get("limit", 150))
         )
         texts = (subset["product_name"] + ". " + subset["description"]).tolist()
