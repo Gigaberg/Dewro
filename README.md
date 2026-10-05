@@ -205,9 +205,3 @@ The app will be live at your Snapdeploy container URL.
 ## 👥 Authors & Team Contributions
 
 This project was developed by the DEWRO team. For a detailed breakdown of module ownership, AI/ML modeling, backend security, frontend architecture, and academic deliverables, see [TEAM_CONTRIBUTIONS.md](./TEAM_CONTRIBUTIONS.md).
-
----
-
-## 📜 License
-
-This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
