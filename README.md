@@ -5,8 +5,8 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-snapdeploy.app-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](https://dewro-230c0.containers.snapdeploy.app/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/Gigaberg/Dewro/blob/main/Dockerfile)
 
 **An end-to-end NLP & Deep Learning pipeline that identifies duplicate industrial material descriptions, extracts technical attributes, and standardizes them into structured golden catalog records.**
 
