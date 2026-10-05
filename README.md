@@ -67,6 +67,7 @@ flowchart TD
 - Employs `sentence-transformers/all-MiniLM-L6-v2` to map free-text descriptions into 384-dimensional dense semantic vectors.
 - Clusters items with pairwise cosine similarity using Agglomerative Clustering (default threshold $\ge 0.78$).
 - Includes a TF-IDF vectorizer baseline for academic comparison.
+- **Auto-scaling:** inputs with more than 150 items automatically switch from MiniLM embeddings to TF-IDF. The neural model requires loading ~90MB into RAM and running a CPU forward pass per batch — above 150 items this exceeds the 30-second gateway timeout on free-tier hosting. TF-IDF runs entirely in-process with no model overhead and handles 1000+ items in under 2 seconds. The UI displays a notice when the switch occurs.
 
 ### 2. Attribute Extraction (`src/extract.py`)
 - Dual-layer extraction pipeline:

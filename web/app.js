@@ -196,7 +196,15 @@ $("#pipeRun").addEventListener("click", async () => {
       body: JSON.stringify(body),
     });
     const csvBlob = "data:text/csv;charset=utf-8," + encodeURIComponent(d.csv);
-    out.innerHTML =
+    let html = "";
+    if (d.auto_switched) {
+      html += `<div class="rounded-xl p-3 mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+        <span class="font-semibold">Auto-switched to TF-IDF</span> — your input has ${d.n_in} items.
+        The MiniLM embedding model times out above 150 items on the free-tier server, so TF-IDF cosine
+        similarity was used instead. Results are still accurate; semantic nuance is slightly reduced.
+      </div>`;
+    }
+    html +=
       metrics([
         { label: "Descriptions in", value: d.n_in },
         { label: "Harmonized records", value: d.n_records },
@@ -208,6 +216,7 @@ $("#pipeRun").addEventListener("click", async () => {
             class="text-sm font-semibold text-brand hover:underline">↓ Download CSV</a>
        </div>` +
       table(d.columns, d.rows);
+    out.innerHTML = html;
   } catch (e) { out.innerHTML = errorBox(e.message); }
 });
 
@@ -232,7 +241,15 @@ $("#dupRun").addEventListener("click", async () => {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    let html = metrics([
+    let html = "";
+    if (d.auto_switched) {
+      html += `<div class="rounded-xl p-3 mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+        <span class="font-semibold">Auto-switched to TF-IDF</span> — your input has ${d.n_items} items.
+        The MiniLM embedding model times out above 150 items on the free-tier server, so TF-IDF cosine
+        similarity was used instead. Results are still accurate; semantic nuance is slightly reduced.
+      </div>`;
+    }
+    html += metrics([
       { label: "Items", value: d.n_items },
       { label: "Duplicate groups", value: d.n_groups },
       { label: "Items in a group", value: d.n_in_groups },

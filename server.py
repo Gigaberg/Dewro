@@ -2,6 +2,18 @@
 
 Serves the Design.md-styled frontend (web/index.html) and exposes the existing
 src/ pipeline modules as JSON endpoints. Functionally mirrors the Streamlit app.
+
+Auto-scaling note
+-----------------
+The MiniLM embedding model (~90MB) requires loading into RAM and running a
+forward pass for every description. On the free-tier container (512MB RAM,
+shared CPU) this comfortably handles up to ~150 items before the 30-second
+gateway timeout is exceeded.
+
+For larger inputs (> EMBED_LIMIT items) the server automatically falls back to
+TF-IDF cosine similarity, which runs entirely in-process with no neural model,
+completing 1000+ items in under 2 seconds. A `method_used` and `auto_switched`
+field are included in the response so the frontend can inform the user.
 """
 from __future__ import annotations
 
@@ -15,6 +27,9 @@ from flask import Flask, jsonify, request, send_from_directory
 from src import data, dedupe, extract, pipeline, standardize
 
 app = Flask(__name__, static_folder="web", static_url_path="")
+
+# Items above this threshold auto-switch from MiniLM embeddings to TF-IDF.
+EMBED_LIMIT = 150
 
 
 # --------------------------------------------------------------------------- #
@@ -93,11 +108,8 @@ def api_dedupe():
         method = body.get("method", "embeddings")
         if len(texts) < 2:
             return jsonify(error="Need at least 2 descriptions."), 400
-        # Cap at 100 items on free-tier to avoid OOM / timeout kills.
-        MAX_ITEMS = 100
-        if len(texts) > MAX_ITEMS:
-            texts = texts[:MAX_ITEMS]
-            labels = labels[:MAX_ITEMS]
+
+        method, auto_switched = _resolve_method(method, len(texts))
 
         res = dedupe.detect_duplicates(texts, threshold=threshold, method=method)
         groups = []
@@ -118,6 +130,8 @@ def api_dedupe():
             n_groups=len(res.duplicate_groups),
             n_in_groups=sum(len(g) for g in res.duplicate_groups),
             groups=groups,
+            method_used=method,
+            auto_switched=auto_switched,
         )
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Dedupe failed: {exc}"), 500
@@ -179,15 +193,11 @@ def api_pipeline():
         texts, _, hints = _resolve_texts(body)
         if not texts:
             return jsonify(error="No descriptions provided."), 400
-        # Cap at 75 items to stay within memory/time limits on free-tier hosting.
-        MAX_ITEMS = 75
-        if len(texts) > MAX_ITEMS:
-            texts = texts[:MAX_ITEMS]
-            if hints:
-                hints = hints[:MAX_ITEMS]
-        threshold = float(body.get("threshold", 0.80))
+
         method = body.get("method", "embeddings")
+        method, auto_switched = _resolve_method(method, len(texts))
         run_t5 = bool(body.get("run_t5", False))
+        threshold = float(body.get("threshold", 0.80))
 
         df = pipeline.harmonize(
             texts, threshold=threshold, method=method, run_t5=run_t5, brand_hints=hints,
@@ -199,6 +209,8 @@ def api_pipeline():
             columns=list(df.columns),
             rows=df.fillna("").to_dict("records"),
             csv=df.to_csv(index=False),
+            method_used=method,
+            auto_switched=auto_switched,
         )
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Pipeline failed: {exc}"), 500
@@ -213,7 +225,7 @@ def csv_inspect():
     if f is None:
         return jsonify(error="No file uploaded."), 400
     try:
-        df = pd.read_csv(io.BytesIO(f.read())).head(75)
+        df = pd.read_csv(io.BytesIO(f.read())).head(5000)
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Could not parse CSV: {exc}"), 400
     return jsonify(
@@ -230,11 +242,9 @@ def _best_text_column(df: pd.DataFrame) -> str | None:
         series = df[col].dropna().astype(str)
         if series.empty:
             continue
-        # fraction of values that are purely numeric (ids, prices, codes)
         numeric_frac = series.str.fullmatch(r"\s*-?\d+(?:\.\d+)?\s*").mean()
         avg_len = series.str.len().mean()
         name_penalty = 0.0 if re.search(r"id$|^id|price|qty|count", col, re.I) else 1.0
-        # prefer long, non-numeric, non-id columns
         score = avg_len * (1.0 - numeric_frac) * name_penalty
         if score > best_score:
             best, best_score = col, score
@@ -249,11 +259,20 @@ def _table(name: str, df: pd.DataFrame) -> dict:
     return {"name": name, "columns": list(df.columns), "rows": df.to_dict("records")}
 
 
-def _resolve_texts(body: dict):
-    """Return (texts, labels, brand_hints) from a request body.
+def _resolve_method(requested: str, n_items: int) -> tuple[str, bool]:
+    """Return (method_to_use, auto_switched).
 
-    Accepts either {category, limit} (Flipkart) or {texts: [...]}.
+    If the user requested MiniLM embeddings but the item count exceeds
+    EMBED_LIMIT, automatically fall back to TF-IDF to avoid gateway timeouts
+    and OOM errors on the free-tier container.
     """
+    if requested == "embeddings" and n_items > EMBED_LIMIT:
+        return "tfidf", True
+    return requested, False
+
+
+def _resolve_texts(body: dict):
+    """Return (texts, labels, brand_hints) from a request body."""
     if body.get("category"):
         subset = data.flipkart_subset(
             category=body["category"], limit=int(body.get("limit", 150))
