@@ -20,7 +20,6 @@ WORKDIR /home/user/app
 # Install dependencies. Use the CPU-only torch wheel to keep the image small.
 COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
  && pip install --no-cache-dir -r requirements.txt \
  && pip install --no-cache-dir gunicorn \
  && python -m spacy download en_core_web_sm
